@@ -1,0 +1,15 @@
+#!/bin/bash
+
+CONSTANTS=include/constants.h
+SRC=$(basename -- $1)
+HDR=include/${SRC%.*}.h
+
+echo $1, $SRC, $HDR
+
+PREFIX="${PREFIX:-$CONDA_PREFIX}"
+echo PREFIX=$PREFIX
+cpp -dD -std=c99 -I$PREFIX/include $1 | grep -v \" | grep "define DEFAULT_" > $CONSTANTS
+cpp -dD -std=c99 -I$PREFIX/include $1 | grep -v \" | grep "define LOG_LEVEL" >> $CONSTANTS
+cpp -dD -std=c99 -I$PREFIX/include $1 | grep -v \" | grep "define FRAME_CURRENT_VERSION" >> $CONSTANTS
+cpp -std=c99 -nostdinc -Iinclude -I$PREFIX/include $1 | grep -v \# > $HDR
+#cpp -std=c99 -D'__asm__(x)=' -D'__attribute__(x)=' -D'__restrict=' -D'__inline=' -D'__signed__=' '-D__extension__=' -I../include $1 ${1%.*}.h
