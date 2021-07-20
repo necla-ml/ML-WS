@@ -468,17 +468,17 @@ class AVSource(object):
     def get(self, session, key, media='video'):
         if media == 'video' and media in session:
             video = session[media]
-            if key == cv.CAP_PROP_FOURCC:
+            if key == cv.VIDEO_IO_FLAGS.CAP_PROP_FOURCC:
                 return video['codec'] and av.avcodec(video['codec'].name)[1] or None
-            elif key == cv.CAP_PROP_FRAME_WIDTH:
+            elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_FRAME_WIDTH:
                 return video['width']
-            elif key == cv.CAP_PROP_FRAME_HEIGHT:
+            elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_FRAME_HEIGHT:
                 return video['height']
-            elif key == cv.CAP_PROP_FPS:
+            elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_FPS:
                 return video['fps']
-            elif key == cv.CAP_PROP_POS_MSEC:
+            elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_POS_MSEC:
                 return video['time'] * 1000
-            elif key == cv.CAP_PROP_BUFFERSIZE:
+            elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_BUFFERSIZE:
                 return 0
 
         logging.warning(f"Unknown key to get: {key} from {media}")
@@ -492,9 +492,9 @@ class AVSource(object):
                 logging.warning(f"Source stream property cannot be changed")
                 return False
 
-            if key == cv.CAP_PROP_FOURCC:
+            if key == cv.VIDEO_IO_FLAGS.CAP_PROP_FOURCC:
                 fmt, fourcc = av.codec(value)
-                if stream.set(cv.CAP_PROP_FOURCC, fourcc):
+                if stream.set(cv.VIDEO_IO_FLAGS.CAP_PROP_FOURCC, fourcc):
                     video['format'] = fmt
                     return True
                 else:
@@ -502,16 +502,16 @@ class AVSource(object):
                     return False
             elif stream.set(key, value):
                 res = stream.get(key)
-                if key == cv.CAP_PROP_FPS:
+                if key == cv.VIDEO_IO_FLAGS.CAP_PROP_FPS:
                     video['fps'] = int(res)
                     logging.warning(f"Set video source CAP_PROP_FPS to {value}({int(res)})")
-                elif key == cv.CAP_PROP_FRAME_WIDTH:
+                elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_FRAME_WIDTH:
                     video['width'] = int(res)
                     video['height'] = int(stream.get(cv.CAP_PROP_FRAME_HEIGHT))
                     logging.info(f"Set video source CAP_PROP_FRAME_WIDTH to {value}({int(res)})")
-                elif key == cv.CAP_PROP_FRAME_HEIGHT:
+                elif key == cv.VIDEO_IO_FLAGS.CAP_PROP_FRAME_HEIGHT:
                     video['height'] = int(res)
-                    video['width'] = int(stream.get(cv.CAP_PROP_FRAME_WIDTH))
+                    video['width'] = int(stream.get(cv.VIDEO_IO_FLAGS.CAP_PROP_FRAME_WIDTH))
                     logging.info(f"Set video source CAP_PROP_FRAME_HEIGHT to {value}({int(res)})")
                 return True
 
