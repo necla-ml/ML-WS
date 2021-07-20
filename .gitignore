@@ -1,0 +1,59 @@
+# Project specific
+
+# Binaries
+*.h264
+*.264
+*.mp4
+*.mkv
+*.avi
+*.webm
+
+# setuptools
+.eggs
+*.egg-info
+**/build
+**/version.py
+
+# Python
+__pycache__
+*.pyc
+*~
+**/__pycache__
+**/*.pyc
+**/*~
+
+# C/C++
+ml/csrc/include/cdef.h
+ml/csrc/include/constants.h
+/include
+/lib
+*.h
+*.so*
+*.dylib*
+**/*.so*
+**/*.dylib*
+
+# VIM
+*.swo
+*.swp
+.*.swp
+**/*.swp
+**/*.swo
+**/.*.swp
+
+# Systemd
+**/*.service
+
+# BEGIN NOT-CLEAN-FILES (setup.py handles this marker. Do not change.)
+#
+# Below files are not deleted by "setup.py clean".
+
+# Built artifacts
+ml/csrc/src/*.h
+ml/ws/version.py
+dist
+
+# VS Code
+.code-workspace
+.vscode
+.vs
