@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 
 import requests, base64
 
-from ml import av, cv, logging
+from ml import av, logging
 from ml.av import h264
 from ml.av import NALU_t
 from ml.time import (
