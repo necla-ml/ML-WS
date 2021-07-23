@@ -7,7 +7,7 @@
 
 from time import time
 
-from ml import av, logging
+from ml import logging
 from .avsource import AVSource, openAV
 
 def kvs_session_url(stream, start, end, timestamp, **kwargs):
