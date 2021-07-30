@@ -29,7 +29,7 @@ def test_youtube_live_av(url):
     logging.info(f"av.open({hls}, {options})")
     s = av.open(hls, options=options, timeout=5.0 * 2)
     v = s.demux(video=0)
-    for i in range(2000):
+    for i in range(100):
         f = next(v)
         pts = float(f.pts * f.time_base)
         duration = float(f.duration * f.time_base)
@@ -44,7 +44,7 @@ def test_youtube_live(url):
     assert session is not None
     assert 'video' in session
     logging.info(session)
-    for i in range(2000):
+    for i in range(100):
         m, meta, frame = source.read(session, media='video')
         assert meta == session['video']
         assert frame is not None

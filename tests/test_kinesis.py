@@ -34,7 +34,7 @@ def inf(request):
 def url(stream):
     return f"kvs://{stream}"
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_producer_timestamp_live(stream, total):
     source = AVSource.create(url(stream))
     assert type(source) is kinesis.KVSource
