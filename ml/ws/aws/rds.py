@@ -111,7 +111,7 @@ def create_parameter(i, v):
         else:
             element_type = 'stringValues'
         value[value_type] = {element_type: v}
-    elif v is 'null':
+    elif v == 'null':
         value = {'isNull': True}
 
     return {'name': 'name{}'.format(i), 'value': value}
@@ -159,7 +159,7 @@ def create_parameter_dict(d, sql=None) -> list:
             else:
                 element_type = 'stringValues'
             value[value_type] = {element_type: v}
-        elif v is 'null':
+        elif v == 'null':
             value = {'isNull': True}
 
         param.append({'name': '{}'.format(k), 'value': value})

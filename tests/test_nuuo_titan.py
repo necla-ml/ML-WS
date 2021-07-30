@@ -34,21 +34,26 @@ def passwd():
 cred = None
 
 @pytest.fixture
+def rds():
+    from ml.ws.aws.rds import RDS
+    return RDS()
+
+@pytest.fixture
 def site():
     return 3
 
 @pytest.fixture
-def credentials(site):
+def credentials(rds, site):
     global cred
     if cred is None:
         from ml.ws.aws import utils
-        from ml.ws.aws.rds import RDS
+        from ml.ws.aws.rds import get_nvr_credentials
         secret = utils.get_secret()
         #self.region = region or secret.get('AWS_DEFAULT_REGION', ffi.NULL)
         #self.accessKey = accessKey or secret.get('AWS_ACCESS_KEY_ID', ffi.NULL)
         #self.secretKey = secretKey or secret.get('AWS_SECRET_ACCESS_KEY', ffi.NULL)
         privateKey = secret.get('PRIVATE_KEY', None)
-        cred = RDS().get_nvr_credentials(site, privateKey)
+        cred = get_nvr_credentials(rds, site, privateKey)
         print(secret)
         print(cred)
         return cred
@@ -137,7 +142,7 @@ def test_streaming_all(credentials, duration=5):
         startStreaming(nvr, cfg, duration)
         print()
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_connect(credentials):
     ip = credentials['ip']
     port = credentials['port']
@@ -149,7 +154,7 @@ def test_connect(credentials):
     for device in nvr:
         logging.info(device)
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_query_streaming_one(credentials):
     ip = credentials['ip']
     port = credentials['port']
@@ -180,7 +185,7 @@ def test_query_PTZ(ip, port, user, passwd, areas):
     logging.info(src)
 '''
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_queries(credentials):
     # Connect to VMS/NVR
     ip = credentials['ip']
@@ -213,7 +218,7 @@ def test_queries(credentials):
     assert len(srcs) == 26
 
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_single_session(credentials, areas, FPS):
     ip = credentials['ip']
     port = credentials['port']
@@ -245,7 +250,7 @@ def test_single_session(credentials, areas, FPS):
     source.close(session)
     assert not session
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_multi_sessions(credentials, FPS):
     ip = credentials['ip']
     port = credentials['port']
