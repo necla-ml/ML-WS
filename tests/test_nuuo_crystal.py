@@ -97,7 +97,7 @@ def startStreaming(nvr, cfg, duration=None, debug=False):
             cv.destroyAllWindows()
             break
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_connect(ip, port, user, passwd):
     nvr = NVR.create(ip, port, user=user, passwd=passwd)
     assert isinstance(nvr, Crystal)
@@ -105,7 +105,7 @@ def test_connect(ip, port, user, passwd):
     for _, setup in nvr:
         logging.info(setup)
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_queries(ip, port, user, passwd):
     # Connect to VMS/NVR
     nvr = NVR.create(ip, port, user=user, passwd=passwd)
@@ -135,7 +135,7 @@ def test_queries(ip, port, user, passwd):
     assert len(srcs) == 1
     assert srcs[0][1]['area'] == 'Highway'
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_streaming_one(ip, port, user, passwd):
     area = 'Medical Entry'
     area = 'Mall Entrance'
@@ -155,7 +155,7 @@ def test_streaming_one(ip, port, user, passwd):
     startStreaming(nvr, cfg, duration=150, debug=not True)
     print()
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_streaming_all(ip, port, user, passwd, duration=5):
     nvr = NVR.create(ip, port, user=user, passwd=passwd)
     assert isinstance(nvr, Crystal)
@@ -170,7 +170,7 @@ def test_streaming_all(ip, port, user, passwd, duration=5):
             startStreaming(nvr, cfg, duration)
             print()
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_single_session(ip, port, user, passwd, areas, FPS):
     area = areas[1]
     fps = FPS[area]
@@ -203,7 +203,7 @@ def test_single_session(ip, port, user, passwd, areas, FPS):
     assert not session
 
 
-@pytest.mark.essential
+# @pytest.mark.essential
 def test_multi_sessions(ip, port, user, passwd, areas, FPS):
     source = AVSource.create(url(ip, port), user=user, passwd=passwd)
     sessions = source.open('Ent', 'Original', decoding=True, with_audio=False)

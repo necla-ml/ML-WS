@@ -14,7 +14,7 @@ from ml.av.h264 import NALU_t
 from ml import logging
 
 from ml.streaming import AVSource
-from ml.streaming.producers import KVProducer, DEFAULT_FPS_VALUE, HUNDREDS_OF_NANOS_IN_A_SECOND
+from ml.streaming.producers import KVProducer, DEFAULT_FPS_VALUE, HUNDREDS_OF_NANOS_SEC
 from ml.streaming._C import ffi, lib
 
 from concurrent.futures import ProcessPoolExecutor
@@ -43,7 +43,7 @@ class NUUOProducerTest(KVProducer):
         pFrame = ffi.new('PFrame')
         pFrame.version = ffi.integer_const('FRAME_CURRENT_VERSION')
         pFrame.trackId = ffi.integer_const('DEFAULT_VIDEO_TRACK_ID')
-        pFrame.duration = int(HUNDREDS_OF_NANOS_IN_A_SECOND / (fps or DEFAULT_FPS_VALUE))
+        pFrame.duration = int(HUNDREDS_OF_NANOS_SEC / (fps or DEFAULT_FPS_VALUE))
 
         frameIndex = 0
         start_time = time()
@@ -51,7 +51,7 @@ class NUUOProducerTest(KVProducer):
 
         streamStopTime = None
         if duration is not None:
-            streamingDuration = duration * HUNDREDS_OF_NANOS_IN_A_SECOND
+            streamingDuration = duration * HUNDREDS_OF_NANOS_SEC
             streamStopTime = lib.defaultGetTime() + streamingDuration
             print(f"Streaming stops in {streamStopTime / 10000000:.3f}s")
         else:
