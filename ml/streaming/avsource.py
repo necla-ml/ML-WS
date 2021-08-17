@@ -47,7 +47,7 @@ def openAV(src, decoding=False, with_audio=False, **kwargs):
             else:
                 source = av.open(src, format=format, options=options, timeout=(15, 5))
         else:
-            if isinstance(src, int) or src.startswith('/dev/video'):
+            if isinstance(src, int) or (isinstance(src, str) and src.startswith('/dev/video')):
                 # XXX webcam: high FPS with MJPG
                 import platform
                 system = platform.system()
@@ -523,16 +523,16 @@ def test_program_date_time():
     #url = kvs_session_url('farley-4871', timestamp='SERVER')
     url = kvs_session_url('farley-4871', timestamp='PRODUCER')
 
-# https://b-604520a7.kinesisvideo.us-east-1.amazonaws.com/hls/v1/getHLSMasterPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~
+    # https://b-604520a7.kinesisvideo.us-east-1.amazonaws.com/hls/v1/getHLSMasterPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~
 
     response = requests.get(url)
     assert response
     print(response.text)
 
-# #EXTM3U
-# #EXT-X-VERSION:1
-# #EXT-X-STREAM-INF:CODECS="avc1.4d4029",RESOLUTION=1280x720,FRAME-RATE=15.0,BANDWIDTH=1953544
-# getHLSMediaPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~&TrackNumber=1
+    # #EXTM3U
+    # #EXT-X-VERSION:1
+    # #EXT-X-STREAM-INF:CODECS="avc1.4d4029",RESOLUTION=1280x720,FRAME-RATE=15.0,BANDWIDTH=1953544
+    # getHLSMediaPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~&TrackNumber=1
 
     headers = response.text.strip().split('\n')
 
