@@ -200,6 +200,9 @@ class AVSource(object):
         elif url.startswith('s3://'):
             from .s3 import S3Source
             return S3Source(url, *args, **kwargs)
+        elif url.startswith('cs://'):
+            from .custom import CustomSource
+            return CustomSource(url, *args, **kwargs)
         else:
             # local file path or other supported remote URL
             # XXX Must be in annex b format if from H.264 NALU bitstream
@@ -518,12 +521,11 @@ class AVSource(object):
         logging.warning(f"Unsupported {media} property to set")
         return False
 
+'''
 def test_program_date_time():
     import requests
     #url = kvs_session_url('farley-4871', timestamp='SERVER')
     url = kvs_session_url('farley-4871', timestamp='PRODUCER')
-
-    # https://b-604520a7.kinesisvideo.us-east-1.amazonaws.com/hls/v1/getHLSMasterPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~
 
     response = requests.get(url)
     assert response
@@ -532,7 +534,7 @@ def test_program_date_time():
     # #EXTM3U
     # #EXT-X-VERSION:1
     # #EXT-X-STREAM-INF:CODECS="avc1.4d4029",RESOLUTION=1280x720,FRAME-RATE=15.0,BANDWIDTH=1953544
-    # getHLSMediaPlaylist.m3u8?SessionToken=CiBVXvKIqDRr-o5w83afDoFhrOhPx9UI72xth4j46IWMpBIQWx5EfYkvuuAGj5H3tqrJqRoZfn7R52n5uAtqSWSL9b20Sqq1qEJIvf7BxyIg4-io9DNgWFCjUpdBEHerx7CteMILDgY6V0vjXcXxwbo~&TrackNumber=1
+    # getHLSMediaPlaylist.m3u8?SessionToken=
 
     headers = response.text.strip().split('\n')
 
@@ -572,3 +574,4 @@ if __name__ == '__main__':
     
     #test_throughput(timestamp='SERVER')
     #test_throughput(timestamp='PRODUCER')
+'''
