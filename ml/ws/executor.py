@@ -1,7 +1,9 @@
-class Executor(object):
+from abc import ABC, abstractmethod
+
+class Executor(ABC):
     """Base executor class for multi threaded modules with start and stop control
     """
-    def __init__(self, name=None, debug=False):
+    def __init__(self, name=None):
         super(Executor, self).__init__()
         self.name = name or self.__class__.__name__
         self._running = 0
@@ -17,6 +19,7 @@ class Executor(object):
     def running(self, v):
         self._running = (1 if v else 0)
 
+    @abstractmethod
     def run(self):
         """ Child classes need to implement this method"""
         pass

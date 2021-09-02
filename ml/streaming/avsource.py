@@ -444,7 +444,7 @@ class AVSource(object):
                 meta['count'] += 1
 
     def read(self, session, media='video', format='BGR'):
-        if media not in session:
+        if session is None or media not in session:
             logging.error(f"{media} not in session to read")
             return None
         try:
