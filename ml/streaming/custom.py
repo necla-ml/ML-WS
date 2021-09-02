@@ -17,12 +17,11 @@ class CustomSource(AVSource):
 
     def open(self, *args, **kwargs):
         try:
-            if not self.path:
-                api_client = SUPPORTED_APIS[self.api]()
-                self.path = api_client.stream_url(self.channel_id, self.stream_type)
+            api_client = SUPPORTED_APIS[self.api]()
+            self.path = api_client.stream_url(self.channel_id, self.stream_type)
             session = openAV(self.path, **kwargs)
         except Exception as e:
             logging.error(f"Failed to open session: {e}")
-            return None
+            raise e
         else:
             return session
