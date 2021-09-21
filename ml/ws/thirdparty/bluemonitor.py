@@ -69,10 +69,31 @@ class BlueMonitor(APIClient):
         headers = meta_creds['headers']
         url = meta_creds['url']
         headers['Authorization'] = headers['Authorization'].replace('auth_token', ch_auth_token)
-        # request stream url
+        # call endpoint
         res = self.post(url, json.dumps(data), headers)
         if res.status_code == 200:
             result = res.json()
             return result
         else:
             raise Exception(f'Failed to send meta {res.status_code}: {res.text}')
+
+    def send_event(self, channel_id, data, reload=False):
+        """
+        curl -X POST "url" \
+        -H "accept: application/json" \
+        -H "Content-Type: application/json" 
+        -H "Authorization: Acc adijiofenwenfiwenfiwnefwen"
+        -d "json_data"
+        """
+        event_creds = self.secret['event']
+        ch_auth_token = self._auth_channel(channel_id, reload=reload)
+        headers = event_creds['headers']
+        url = event_creds['url']
+        headers['Authorization'] = headers['Authorization'].replace('auth_token', ch_auth_token)
+        # call endpoint
+        res = self.post(url, json.dumps(data), headers)
+        if res.status_code in [200, 201]:
+            result = res.json()
+            return result
+        else:
+            raise Exception(f'Failed to trigger event {res.status_code}: {res.text}')
