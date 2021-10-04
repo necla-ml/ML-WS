@@ -10,7 +10,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('GstRtp', '1.0')
 gi.require_version('GstRtsp', '1.0')
-from gi.repository import Gst, GstRtp, GstRtsp, GObject, GLib
+from gi.repository import Gst, GstRtp, GstRtsp, GObject
 Gst.init(None)
 
 from .gst_data import *
@@ -33,8 +33,8 @@ def add_probe(pipeline, element_name, callback, pad_name="sink", probe_type=Gst.
     sinkpad.add_probe(probe_type, callback, 0)
 
 class GSTPipeline(Thread):
-    def __init__(self, cfg, name, max_buffer=100, queue_timeout=10):
-        super().__init__()
+    def __init__(self, cfg, name, max_buffer=100, queue_timeout=10, daemon=True):
+        super().__init__(daemon=daemon)
         self.name = name or self.__class__.__name__
         self.cfg = cfg
         self.state = STATE.NULL
@@ -104,7 +104,7 @@ class GSTPipeline(Thread):
             raise e
     
     def run(self):
-        self.loop = GLib.MainLoop()
+        self.loop = GObject.MainLoop()
         # change state to PLAYING
         ret = self.pipeline.set_state(Gst.State.PLAYING)
         if ret == Gst.StateChangeReturn.FAILURE:
@@ -134,8 +134,12 @@ class GSTPipeline(Thread):
 
     def close(self):
         logging.info(f"CLOSE {self.name}")
-        self.pipeline.set_state(Gst.State.NULL)
         self.loop.quit()
+        state = self.pipeline.set_state(Gst.State.NULL)
+        # dereference the element 
+        self.pipeline.unref()
+        if state != Gst.StateChangeReturn.SUCCESS:
+            logging.warning('GST state change to NULL failed')
         self.join(timeout=None)
 
 class RTSPPipeline(GSTPipeline):
@@ -176,11 +180,15 @@ class RTSPPipeline(GSTPipeline):
 
         duration = buffer.duration
 
+        # NOTE: gst buffer is not writable 
         arr = np.ndarray(
             shape=shape,
             buffer=map_info.data,
-            dtype=np.uint8
+            dtype=np.uint8,
+            order='C'
         )
+        # arr.flags.writeable = True
+
         current_frame = FRAME(
             data=arr,
             timestamp=ntp_timestamp,
