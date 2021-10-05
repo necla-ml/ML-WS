@@ -1,9 +1,10 @@
-import logging
 from threading import Thread
 from abc import abstractmethod
 from queue import Queue, Empty, Full
 
 import numpy as np
+
+from ml import logging
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -33,7 +34,7 @@ def add_probe(pipeline, element_name, callback, pad_name="sink", probe_type=Gst.
     sinkpad.add_probe(probe_type, callback, 0)
 
 class GSTPipeline(Thread):
-    def __init__(self, cfg, name, max_buffer=100, queue_timeout=10, daemon=True):
+    def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
         super().__init__(daemon=daemon)
         self.name = name or self.__class__.__name__
         self.cfg = cfg
@@ -136,15 +137,13 @@ class GSTPipeline(Thread):
         logging.info(f"CLOSE {self.name}")
         self.loop.quit()
         state = self.pipeline.set_state(Gst.State.NULL)
-        # dereference the element 
-        self.pipeline.unref()
         if state != Gst.StateChangeReturn.SUCCESS:
             logging.warning('GST state change to NULL failed')
         self.join(timeout=None)
 
 class RTSPPipeline(GSTPipeline):
-    def __init__(self, cfg, name=None):
-        super().__init__(cfg, name)
+    def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
+        super().__init__(cfg, name, max_buffer, queue_timeout, daemon)
         self.rtsp_video_caps = None
         self.rtcp_ntp_time_epoch_ns = None
         self.rtcp_buffer_timestamp = None
