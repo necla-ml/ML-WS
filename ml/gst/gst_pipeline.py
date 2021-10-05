@@ -1,10 +1,10 @@
 from threading import Thread
 from abc import abstractmethod
-from queue import Queue, Empty, Full
 
 import numpy as np
 
 from ml import logging
+from ml.ws.common import Dequeue
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -42,7 +42,7 @@ class GSTPipeline(Thread):
         self.pipeline = None
         self.loop = None
 
-        self.queue = Queue(maxsize=max_buffer)
+        self.queue = Dequeue(maxlen=max_buffer) # Queue(maxsize=max_buffer)
         self.queue_timeout = queue_timeout
 
         self.setup()
@@ -121,17 +121,14 @@ class GSTPipeline(Thread):
             TimeoutError
         """
         try:
-            value = self.queue.get(block=True, timeout=self.queue_timeout)
-        except Empty:
-            raise TimeoutError('Read timed out due to empty buffer queue')
+            value = self.queue.get(timeout=self.queue_timeout)
+        except TimeoutError as e:
+            raise e
         else:
             return value
 
     def put(self, message_type, message):
-        try:
-            self.queue.put_nowait((message_type, message))
-        except Full:
-            logging.warning('Buffer queue full, consumer is too slow or queue size is too low!')
+        self.queue.put((message_type, message))
 
     def close(self):
         logging.info(f"CLOSE {self.name}")
