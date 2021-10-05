@@ -1,7 +1,9 @@
 import time
 import asyncio
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from functools import wraps
+from threading import Event
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 TASKS = {}
 task = lambda f: TASKS.setdefault(f.__name__, f)
@@ -148,5 +150,26 @@ class ParallelExecutor:
     def __iter__(self):
         return iter(self.tasks)
 
+class Dequeue(deque):
+    def __init__(self, maxlen):
+        super().__init__(maxlen=maxlen)
+        self.not_empty = Event()
 
+    def put(self, elem):
+        """
+        Append elem to the left of deque
+        """
+        super().append(elem)
+        self.not_empty.set()
 
+    def get(self, timeout=None):
+        """
+        Raises TimeoutError
+        """
+        # Wait until not empty, or next append call
+        valid = self.not_empty.wait(timeout=timeout)  
+        if not valid:
+            raise TimeoutError('Timeout while waiting')
+        if not (len(self) - 1):
+            self.not_empty.clear()
+        return super().popleft()
