@@ -97,3 +97,24 @@ class BlueMonitor(APIClient):
             return result
         else:
             raise Exception(f'Failed to trigger event {res.status_code}: {res.text}')
+    
+    def get_thumbnail(self, channel_id, start_ts, end_ts, reload=False):
+        """
+        curl -X GET "url" 
+        -H "accept: application/json" 
+        -H "Authorization: Acc adijiofenwenfiwenfiwnefwen"
+        """
+        thumbnail_creds = self.secret['thumbnail']
+        ch_auth_token = self._auth_channel(channel_id, reload=reload)
+        headers = thumbnail_creds['headers']
+        url = thumbnail_creds['url']
+        headers['Authorization'] = headers['Authorization'].replace('auth_token', ch_auth_token)
+        url = url.replace('channel_id', str(channel_id)).replace('start_timestamp', start_ts).replace('end_timestamp', end_ts)
+        # call endpoint
+        res = self.get(url, headers)
+        if res.status_code in [200, 201]:
+            result = res.json()
+            return result
+        else:
+            raise Exception(f'Failed to trigger event {res.status_code}: {res.text}')
+
