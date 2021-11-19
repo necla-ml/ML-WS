@@ -168,13 +168,14 @@ class RTSPPipeline(GSTPipeline):
             timestamp which carried the Sender Report); This timestamp is 
             synchronized with the stream's RTP buffer timestamps on GStreamer clock
         '''
+        duration = buffer.duration
         if self.rtcp_ntp_time_epoch_ns is not None:
             # calc buffer ntp timestamp
-            buffer_ntp_ns = self.rtcp_ntp_time_epoch_ns + (buffer.pts - self.rtcp_buffer_timestamp)
+            # FIXME: time jump due to sudden increase in rtcp_buffer_timestamp
+            self.rtcp_ntp_time_epoch_ns += duration
+            buffer_ntp_ns = self.rtcp_ntp_time_epoch_ns #+ (buffer.pts - self.rtcp_buffer_timestamp)
             # nsec to sec
             ntp_timestamp = buffer_ntp_ns / 10 ** 9
-
-        duration = buffer.duration
 
         # NOTE: gst buffer is not writable 
         arr = np.ndarray(
@@ -183,7 +184,6 @@ class RTSPPipeline(GSTPipeline):
             dtype=np.uint8,
             order='C'
         )
-        # arr.flags.writeable = True
 
         current_frame = FRAME(
             data=arr,
