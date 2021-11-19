@@ -141,7 +141,7 @@ class GSTPipeline(Thread):
 class RTSPPipeline(GSTPipeline):
     def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
         super().__init__(cfg, name, max_buffer, queue_timeout, daemon)
-        self.rtsp_video_caps = None
+        self.video_caps = None
         self.rtcp_ntp_time_epoch_ns = None
         self.rtcp_buffer_timestamp = None
 
@@ -168,13 +168,14 @@ class RTSPPipeline(GSTPipeline):
             timestamp which carried the Sender Report); This timestamp is 
             synchronized with the stream's RTP buffer timestamps on GStreamer clock
         '''
+        duration = buffer.duration
         if self.rtcp_ntp_time_epoch_ns is not None:
             # calc buffer ntp timestamp
-            buffer_ntp_ns = self.rtcp_ntp_time_epoch_ns + (buffer.pts - self.rtcp_buffer_timestamp)
+            # FIXME: time jump due to sudden increase in rtcp_buffer_timestamp
+            self.rtcp_ntp_time_epoch_ns += duration
+            buffer_ntp_ns = self.rtcp_ntp_time_epoch_ns #+ (buffer.pts - self.rtcp_buffer_timestamp)
             # nsec to sec
             ntp_timestamp = buffer_ntp_ns / 10 ** 9
-
-        duration = buffer.duration
 
         # NOTE: gst buffer is not writable 
         arr = np.ndarray(
@@ -183,7 +184,6 @@ class RTSPPipeline(GSTPipeline):
             dtype=np.uint8,
             order='C'
         )
-        # arr.flags.writeable = True
 
         current_frame = FRAME(
             data=arr,
@@ -313,7 +313,7 @@ class RTSPPipeline(GSTPipeline):
                 structure.get_string("profile-level-id"),
                 structure.get_string("a-framerate")
             )
-            logging.info(f"RTSP CAPS (VIDEO) | {self.rtsp_video_caps}")
+            logging.info(f"RTSP CAPS (VIDEO) | {self.video_caps}")
         name = structure.get_name()
         if name == 'application/x-rtp':
             # link depay element here since the pad is open now
