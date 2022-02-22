@@ -1,5 +1,6 @@
 from threading import Thread
 from abc import abstractmethod
+from turtle import heading, width
 
 import numpy as np
 
@@ -112,6 +113,9 @@ class GSTPipeline(Thread):
             message = f'Unable to set the pipeline to the playing state.'
             self.put(MESSAGE_TYPE.ERROR, Exception(message))
         self.loop.run()
+        state = self.pipeline.set_state(Gst.State.NULL)
+        if state != Gst.StateChangeReturn.SUCCESS:
+            logging.warning('GST state change to NULL failed')
 
     def read(self):
         """
@@ -133,10 +137,13 @@ class GSTPipeline(Thread):
     def close(self):
         logging.info(f"CLOSE {self.name}")
         self.loop.quit()
+        '''
         state = self.pipeline.set_state(Gst.State.NULL)
         if state != Gst.StateChangeReturn.SUCCESS:
             logging.warning('GST state change to NULL failed')
+        '''
         self.join(timeout=None)
+        self.pipeline.unref()
 
 class RTSPPipeline(GSTPipeline):
     def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
@@ -405,6 +412,10 @@ class RTSPPipeline(GSTPipeline):
 
         ''' SIGNALS '''
         self.connect_element_signals()
+    
+    def close(self):
+        super().close()
+        self.decode.unref()
 
 class LocalPipeline(GSTPipeline):
     def __init__(self, cfg, name=None):
