@@ -11,7 +11,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('GstRtp', '1.0')
 gi.require_version('GstRtsp', '1.0')
-from gi.repository import Gst, GstRtp, GstRtsp, GObject
+from gi.repository import Gst, GstRtp, GstRtsp, GObject, GLib
 Gst.init(None)
 
 from .gst_data import *
@@ -105,7 +105,7 @@ class GSTPipeline(Thread):
             raise e
     
     def run(self):
-        self.loop = GObject.MainLoop()
+        self.loop = GLib.MainLoop()
         # change state to PLAYING
         ret = self.pipeline.set_state(Gst.State.PLAYING)
         if ret == Gst.StateChangeReturn.FAILURE:
