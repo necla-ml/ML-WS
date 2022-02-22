@@ -39,7 +39,7 @@ def test_nvh264_leak():
                     timestamp_now = datetime.utcfromtimestamp(time()).strftime('%m-%d-%Y %H:%M:%S.%f')
                     logging.info(f'Frame: {frame_idx} | Current: {timestamp_now} | Frame: {timestamp_frame}')
                     frame_idx +=1
-                    if frame_idx > 200:
+                    if frame_idx > 50:
                         break
                 elif msg_type == MESSAGE_TYPE.EOS:
                     raise message
