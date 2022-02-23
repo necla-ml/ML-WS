@@ -8,11 +8,13 @@ from ml import logging
 from ml.ws.common import Dequeue
 
 import gi
-gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
+gi.require_version('GObject', '2.0')
+gi.require_version('Gst', '1.0')
 gi.require_version('GstRtp', '1.0')
 gi.require_version('GstRtsp', '1.0')
-from gi.repository import Gst, GstRtp, GstRtsp, GObject, GLib
+from gi.repository import Gst, GstRtp, GObject, GLib
+GObject.threads_init()
 Gst.init(None)
 
 from .gst_data import *
@@ -143,7 +145,6 @@ class GSTPipeline(Thread):
             logging.warning('GST state change to NULL failed')
         '''
         self.join(timeout=None)
-        self.pipeline.unref()
 
 class RTSPPipeline(GSTPipeline):
     def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
@@ -415,7 +416,15 @@ class RTSPPipeline(GSTPipeline):
     
     def close(self):
         super().close()
-        self.decode.unref()
+        elements = []
+        for elem in self.pipeline.children:
+            elements.append(elem)
+        for elem in elements:
+            self.pipeline.remove(elem)
+            elem.run_dispose()
+            # print(f"{elem.name} removed and disposed")
+        self.pipeline.run_dispose()
+        # print(f"{self.pipeline.name} disposed")
 
 class LocalPipeline(GSTPipeline):
     def __init__(self, cfg, name=None):

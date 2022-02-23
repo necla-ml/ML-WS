@@ -55,7 +55,8 @@ def test_nvh264_leak():
 
     # pipeline config
     cfg = RTSP_CONFIG(
-        location = 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4',
+        # location = 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4',
+        location = 'rtsp://127.0.0.1:8554/test',    # gst-rtsp-server/build$ examples/test-video
         latency = 5000,
         protocols = 'udp', # tcp | udp | http | udp_mcast | unknown | tls
         encoding = 'H264', # h264 | h265
@@ -76,5 +77,4 @@ def test_nvh264_leak():
         # close 
         pipeline.close()
         logging.info(f"RTSP pipelinie[{count}] closed with {len(pipeline.queue)} frames left in queue")
-        del pipeline
         count += 1
