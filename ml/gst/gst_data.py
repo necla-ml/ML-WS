@@ -1,6 +1,7 @@
 import time
 import collections
 from enum import Enum
+from typing import Any
 from dataclasses import dataclass 
 
 import numpy as np
@@ -11,13 +12,17 @@ class MESSAGE_TYPE(Enum):
     FRAME = 2
 
 @dataclass
+class StreamInfo: 
+    frame_count: int = 0
+    rtcp_ntp_time_epoch_ns: int = -1
+    rtcp_buffer_timestamp: int = -1
+
+@dataclass
 class FRAME:
-    data: np.ndarray
-    timestamp: float
-    height: int
-    width: int
-    channels: int
-    duration: int
+    data: np.ndarray = None
+    timestamp: float = -1
+    pts: int = -1
+    duration: int = -1
 
 @dataclass
 class RTSP_CONFIG:
