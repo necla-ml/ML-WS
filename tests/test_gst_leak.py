@@ -34,10 +34,9 @@ def test_nvh264_leak():
                 if msg_type == MESSAGE_TYPE.FRAME:
                     frame = message.data
                     timestamp = message.timestamp
-                    duration = message.duration
                     timestamp_frame = datetime.utcfromtimestamp(timestamp).strftime('%m-%d-%Y %H:%M:%S.%f')
                     timestamp_now = datetime.utcfromtimestamp(time()).strftime('%m-%d-%Y %H:%M:%S.%f')
-                    logging.info(f'Frame: {frame_idx} | Current: {timestamp_now} | Frame: {timestamp_frame}')
+                    logging.info(f'Frame: {frame_idx} | Current: {timestamp_now} | Frame: {timestamp_frame} | Shape: {frame.shape}')
                     frame_idx +=1
                     if frame_idx > 50:
                         break
@@ -55,9 +54,8 @@ def test_nvh264_leak():
 
     # pipeline config
     cfg = RTSP_CONFIG(
-        # location = 'rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4',
         location = 'rtsp://127.0.0.1:8554/test',    # gst-rtsp-server/build$ examples/test-video
-        latency = 5000,
+        latency = 2000,
         protocols = 'udp', # tcp | udp | http | udp_mcast | unknown | tls
         encoding = 'H264', # h264 | h265
         encoding_device = 'gpu', # cpu | gpu
@@ -69,12 +67,12 @@ def test_nvh264_leak():
     while True:
         # init pipeline
         pipeline = RTSPPipeline(cfg)
-        logging.info(f"RTSP pipelinie[{count}] created with queue size={len(pipeline.queue)}")
+        logging.info(f"RTSP pipeline[{count}] created with queue size={len(pipeline.queue)}")
         # start
         pipeline.start()
         # run 
         run(pipeline)
         # close 
         pipeline.close()
-        logging.info(f"RTSP pipelinie[{count}] closed with {len(pipeline.queue)} frames left in queue")
+        logging.info(f"RTSP pipeline[{count}] closed with {len(pipeline.queue)} frames left in queue")
         count += 1

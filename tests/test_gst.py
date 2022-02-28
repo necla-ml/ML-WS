@@ -6,6 +6,7 @@ import threading
 import sys
 import math
 import time
+import traceback
 import numpy as np
 import gi
 gi.require_version('Gst', '1.0')
@@ -14,7 +15,6 @@ gi.require_version('GstApp', '1.0')
 gi.require_version('GstVideo', '1.0')
 
 from gi.repository import GObject, GLib, Gst, GstRtp, GstApp, GstVideo
-
 
 @dataclass
 class StreamInfo:
@@ -117,7 +117,6 @@ def extract_buffer(sample: Gst.Sample) -> np.ndarray:
         array = np.ndarray(shape=shape, buffer=buffer.extract_dup(0, buffer_size),
                            dtype=get_np_dtype(video_format))
 
-        import torch
         return np.squeeze(array), buffer.pts  # remove single dimension if exists
 
 def on_buffer(sink: GstApp.AppSink, vCtx: StreamInfo) -> Gst.FlowReturn:
