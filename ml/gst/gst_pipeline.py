@@ -383,7 +383,8 @@ class RTSPPipeline(GSTPipeline):
         # emit new-preroll and new-sample signals flags
         self.sink.set_property('emit-signals', True)
         # The allowed caps for the sink padflags: readable, writable Caps (NULL)
-        caps = Gst.caps_from_string('video/x-raw, format=(string){BGR, GRAY8}')
+        colorformat = self.cfg.colorformat
+        caps = Gst.caps_from_string('video/x-raw, format=(string){{{cf}}}'.format(cf=colorformat))
         self.sink.set_property('caps', caps)
 
         ''' LINK ELEMENTS '''
