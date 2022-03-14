@@ -1,7 +1,6 @@
 import time
 import collections
 from enum import Enum
-from typing import Any
 from dataclasses import dataclass 
 
 import numpy as np
@@ -40,7 +39,7 @@ class RTSP_CONFIG:
 
     framerate: int = 10
     scale: tuple = () # (H, W)
-
+    colorformat: str = 'RGB' # RGB | BGR | GRAY8
 
 class STATE(Enum):
     """

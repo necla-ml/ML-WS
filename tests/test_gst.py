@@ -72,7 +72,6 @@ _DTYPES = {
 def get_num_channels(fmt: GstVideo.VideoFormat):
     return _ALL_VIDEO_FORMAT_CHANNELS[fmt]
 
-
 def get_np_dtype(fmt: GstVideo.VideoFormat) -> np.number:
     format_info = GstVideo.VideoFormat.get_info(fmt)
     return _DTYPES.get(format_info.bits, np.uint8)
