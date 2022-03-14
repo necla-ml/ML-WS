@@ -11,13 +11,17 @@ class MESSAGE_TYPE(Enum):
     FRAME = 2
 
 @dataclass
+class StreamInfo: 
+    frame_count: int = 0
+    rtcp_ntp_time_epoch_ns: int = -1
+    rtcp_buffer_timestamp: int = -1
+
+@dataclass
 class FRAME:
-    data: np.ndarray
-    timestamp: float
-    height: int
-    width: int
-    channels: int
-    duration: int
+    data: np.ndarray = None
+    timestamp: float = -1
+    pts: int = -1
+    duration: int = -1
 
 @dataclass
 class RTSP_CONFIG:
@@ -35,7 +39,7 @@ class RTSP_CONFIG:
 
     framerate: int = 10
     scale: tuple = () # (H, W)
-
+    colorformat: str = 'RGB' # RGB | BGR | GRAY8
 
 class STATE(Enum):
     """

@@ -1,3 +1,4 @@
+import math
 from threading import Thread
 from abc import abstractmethod
 
@@ -7,14 +8,78 @@ from ml import logging
 from ml.ws.common import Dequeue
 
 import gi
-gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
+gi.require_version('GObject', '2.0')
+gi.require_version('Gst', '1.0')
+gi.require_version('GstApp', '1.0')
 gi.require_version('GstRtp', '1.0')
-gi.require_version('GstRtsp', '1.0')
-from gi.repository import Gst, GstRtp, GstRtsp, GObject
+gi.require_version('GstVideo', '1.0')
+from gi.repository import Gst, GstRtp, GObject, GLib, GstApp, GstVideo
+GObject.threads_init()
 Gst.init(None)
 
 from .gst_data import *
+
+def has_flag(value: GstVideo.VideoFormatFlags,
+             flag: GstVideo.VideoFormatFlags) -> bool:
+
+    # in VideoFormatFlags each new value is 1 << 2**{0...8}
+    return bool(value & (1 << max(1, math.ceil(math.log2(int(flag))))))
+
+def _get_num_channels(fmt: GstVideo.VideoFormat) -> int:
+    """
+        -1: means complex format (YUV, ...)
+    """
+    frmt_info = GstVideo.VideoFormat.get_info(fmt)
+    
+    # temporal fix
+    if fmt == GstVideo.VideoFormat.BGRX:
+        return 4
+    
+    if has_flag(frmt_info.flags, GstVideo.VideoFormatFlags.ALPHA):
+        return 4
+
+    if has_flag(frmt_info.flags, GstVideo.VideoFormatFlags.RGB):
+        return 3
+
+    if has_flag(frmt_info.flags, GstVideo.VideoFormatFlags.GRAY):
+        return 1
+
+    return -1
+
+_ALL_VIDEO_FORMATS = [GstVideo.VideoFormat.from_string(
+    f.strip()) for f in GstVideo.VIDEO_FORMATS_ALL.strip('{ }').split(',')]
+_ALL_VIDEO_FORMAT_CHANNELS = {fmt: _get_num_channels(fmt) for fmt in _ALL_VIDEO_FORMATS}
+_DTYPES = {
+    16: np.int16,
+}
+
+def get_num_channels(fmt: GstVideo.VideoFormat):
+    return _ALL_VIDEO_FORMAT_CHANNELS[fmt]
+
+def get_np_dtype(fmt: GstVideo.VideoFormat):
+    format_info = GstVideo.VideoFormat.get_info(fmt)
+    return _DTYPES.get(format_info.bits, np.uint8)
+
+def extract_buffer(sample: Gst.Sample):
+    """Extracts Gst.Buffer from Gst.Sample and converts to np.ndarray"""
+    buffer = sample.get_buffer()  # Gst.Buffer
+    caps_format = sample.get_caps().get_structure(0)  # Gst.Structure  
+    if caps_format.get_value('format') is None:
+        buffer_size = buffer.get_size()
+        array = np.ndarray(shape=buffer_size, buffer=buffer.extract_dup(0, buffer_size),
+                        dtype=get_np_dtype(video_format))
+        return np.squeeze(array), buffer.pts, buffer.duration, (-1, -1, -1)  # remove single dimension if exists
+    else:
+        video_format = GstVideo.VideoFormat.from_string(caps_format.get_value('format'))
+        w, h = caps_format.get_value('width'), caps_format.get_value('height')
+        c = get_num_channels(video_format)
+        buffer_size = buffer.get_size()
+        shape = (h, w, c) if (h * w * c == buffer_size) else buffer_size
+        array = np.ndarray(shape=shape, buffer=buffer.extract_dup(0, buffer_size),
+                           dtype=get_np_dtype(video_format))
+
+        return np.squeeze(array), buffer.pts, buffer.duration, shape  # remove single dimension if exists
 
 def make_element(factory_name, element_name):
     logging.debug(f'Creating element {element_name} of type {factory_name}')
@@ -105,13 +170,16 @@ class GSTPipeline(Thread):
             raise e
     
     def run(self):
-        self.loop = GObject.MainLoop()
+        self.loop = GLib.MainLoop()
         # change state to PLAYING
         ret = self.pipeline.set_state(Gst.State.PLAYING)
         if ret == Gst.StateChangeReturn.FAILURE:
             message = f'Unable to set the pipeline to the playing state.'
             self.put(MESSAGE_TYPE.ERROR, Exception(message))
         self.loop.run()
+        state = self.pipeline.set_state(Gst.State.NULL)
+        if state != Gst.StateChangeReturn.SUCCESS:
+            logging.warning('GST state change to NULL failed')
 
     def read(self):
         """
@@ -133,160 +201,76 @@ class GSTPipeline(Thread):
     def close(self):
         logging.info(f"CLOSE {self.name}")
         self.loop.quit()
+        '''
         state = self.pipeline.set_state(Gst.State.NULL)
         if state != Gst.StateChangeReturn.SUCCESS:
             logging.warning('GST state change to NULL failed')
+        '''
         self.join(timeout=None)
 
 class RTSPPipeline(GSTPipeline):
     def __init__(self, cfg, name=None, max_buffer=100, queue_timeout=10, daemon=True):
         super().__init__(cfg, name, max_buffer, queue_timeout, daemon)
-        self.video_caps = None
-        self.rtcp_ntp_time_epoch_ns = None
-        self.rtcp_buffer_timestamp = None
+        self._video_caps = None
 
     def on_new_sample(self, sink, udata):
-        sample = sink.emit('pull_sample')
-        buffer = sample.get_buffer()
-
-        # get read access to the buffer data
-        success, map_info = buffer.map(Gst.MapFlags.READ)
-        if not success:
-            self.put(MESSAGE_TYPE.ERROR, RuntimeError("Could not map buffer data!"))
-
-        # extract the width and height info from the sample's caps
-        caps = sample.get_caps()    
-        shape = (caps.get_structure(0).get_value('height'), caps.get_structure(0).get_value('width'), 3)
-
-        # calculate GstBuffer's NTP Time
-        ntp_timestamp = 0
-        '''
-        ==> buffer_ntp_ns = rtcp_ntp_time_epoch_ns + (GST_BUFFER_PTS(buffer) - rtcp_buffer_timestamp)
-        @rtcp_ntp_time_epoch_ns [IN] The 64-bit RTCP NTP Timestamp (IETF RFC 3550; RTCP)
-            converted to epoch time in nanoseconds - GstClockTime 
-        @rtcp_buffer_timestamp [IN] The Buffer PTS (as close as possible to the RTCP buffer
-            timestamp which carried the Sender Report); This timestamp is 
-            synchronized with the stream's RTP buffer timestamps on GStreamer clock
-        '''
-        duration = buffer.duration
-        if self.rtcp_ntp_time_epoch_ns is not None:
-            # calc buffer ntp timestamp
-            # FIXME: time jump due to sudden increase in rtcp_buffer_timestamp
-            self.rtcp_ntp_time_epoch_ns += duration
-            buffer_ntp_ns = self.rtcp_ntp_time_epoch_ns #+ (buffer.pts - self.rtcp_buffer_timestamp)
-            # nsec to sec
-            ntp_timestamp = buffer_ntp_ns / 10 ** 9
-
-        # NOTE: gst buffer is not writable 
-        arr = np.ndarray(
-            shape=shape,
-            buffer=map_info.data,
-            dtype=np.uint8,
-            order='C'
-        )
-
-        current_frame = FRAME(
-            data=arr,
-            timestamp=ntp_timestamp,
-            height=shape[0],
-            width=shape[1],
-            channels=shape[-1],
-            duration=duration
-        )
-
-        if ntp_timestamp:
+        """Callback on 'new-sample' signal"""
+        sample = sink.emit("pull-sample")  # Gst.Sample
+        if isinstance(sample, Gst.Sample):
+            frame, pts, duration, shape = extract_buffer(sample)
+            if udata.rtcp_ntp_time_epoch_ns < 0:
+                logging.warning(f"frame[{udata.frame_count}] out of sync ntp={udata.rtcp_ntp_time_epoch_ns} processed at {time.ctime()}")
+                ntp = -1
+            else:
+                ntp = (udata.rtcp_ntp_time_epoch_ns + (pts - udata.rtcp_buffer_timestamp)) / Gst.SECOND
+            current_frame = FRAME(
+                data=frame,
+                timestamp=ntp,
+                pts=pts,
+                duration=duration
+            )
             self.put(MESSAGE_TYPE.FRAME, current_frame)
+            udata.frame_count += 1
+            return Gst.FlowReturn.OK
+        return Gst.FlowReturn.ERROR
 
-        # clean up the buffer mapping
-        buffer.unmap(map_info)
-
-        return Gst.FlowReturn.OK
-
-    def handle_sync_callback(self, jitter_buffer, struct, udata):
-        """
-        struct: 
-            application/x-rtp-sync, base-rtptime=(guint64)2869166795, base-time=(guint64)2375045731, clock-rate=(uint)90000, clock-base=(guint64)2869166795, sr-ext-rtptime=(guint64)2869304534, 
-            sr-buffer=(buffer)80c80006f1f21e54e4f7076c1bdd872fab061cd60000021d000a9eb081ca000cf1f21e54011c757365723135353632343635363340686f73742d313335643865316506094753747265616d6572000000;
-        """
-        # get buffer and time values from struct
-        sr_buffer = struct.get_value('sr-buffer')
-        gstreamer_time = struct.get_value('base-time')
-        base_rtptime = struct.get_value('base-rtptime')
-        sr_ext_rtptime = struct.get_value('sr-ext-rtptime') 
-        clock_rate = struct.get_value('clock-rate')
-
-        gstreamer_time += Gst.util_uint64_scale(sr_ext_rtptime - base_rtptime, Gst.SECOND, clock_rate)
-
-        if(not sr_buffer): 
-            return
+    def on_handle_sync(self, rtpjitterbuffer, properties, udata):
+        clock_base = properties.get_value('clock-base')
+        clock_rate = properties.get_value('clock-rate')
+        base_time = properties.get_value('base-time')
+        base_rtptime = properties.get_value('base-rtptime')
+        sr_ext_rtptime = properties.get_value('sr-ext-rtptime')
+        buffer = properties.get_value('sr-buffer')
+        gstreamer_time = base_time + Gst.util_uint64_scale(sr_ext_rtptime - base_rtptime, Gst.SECOND, clock_rate)
 
         rtcp = GstRtp.RTCPBuffer()
-        GstRtp.RTCPBuffer.map(sr_buffer, Gst.MapFlags.READ, rtcp)
-        packet = GstRtp.RTCPPacket()
-        res = rtcp.get_first_packet(packet)
-        pkt_exists = True
-        while pkt_exists and res:
-            pkt_type = packet.get_type()
-            if pkt_type == GstRtp.RTCPType.SR:  # SR
-                # get NTP and RTP times 
-                sr_info = packet.sr_get_sender_info()
-                '''
-                rtptime - which is the timestamp synchronized with corresponding
-                RTP Stream is dropped as we have the same mapped to Gstreamer clock
-                in rtpbin (manager) plugin which is eventually saved in
-                gstreamer_time as "base-time".
-                NOTE: This is the latest incoming RTP-buffer-time aligned to
-                gstreamer clock + clock-skew between receiver and sender
-                FOR OSS REFERENCE: Specific code in rtpmanager:
-                do_handle_sync(), rtp_jitter_buffer_get_sync() in
-                gst-plugins-good/gst/rtpmanager/gstrtpjitterbuffer.c
-                '''
-                '''
-                RTCP RFC 3550; The full-resolution
-                NTP timestamp is a 64-bit unsigned fixed-point number with
-                the integer part in the first 32 bits and the fractional part in the
-                last 32 bits.
-                The NTP timescale wraps around every 2^32 seconds (136 years);
-                the first rollover will occur in 2036.
-                The higher 32-bits carry epoch time + 2208988800LL (later is a const introduced by gstrtpbin.c)
-                To convert fractional part of NTP:
-                NTP fraction * (fraction of seconds) / 2 ^ 32.
-                For example of NTP fraction 1329481807, to convert to microsecond: = 1329481807 * (10 ^ 6) / 2 ^ 32 = 309544us (roughly)
-                '''
-                # Extract higher 32-bit epoch into tv_sec
-                tv_sec = ((sr_info.ntptime >> 32) - 2208988800) 
-                # Extract lower 32-bit fraction into tv_nsec
-                tv_nsec = ((sr_info.ntptime & (0xFFFFFFFF)) * Gst.SECOND) >> 32
-                # Total NTP timestamp
-                rtcp_ntp_time_epoch_ns = tv_sec * Gst.SECOND + tv_nsec * Gst.NSECOND
+        pkt = GstRtp.RTCPPacket()
+        GstRtp.rtcp_buffer_map(buffer, Gst.MapFlags.READ, rtcp)
+        available = rtcp.get_first_packet(pkt)
+        while available:
+            if pkt.get_type() == GstRtp.RTCPType.SR:
+                # FIXME: check if video stream
+                ssrc, ntptime, rtptime, _, _ = pkt.sr_get_sender_info()
+                ntp = ((ntptime >> 32) - (70 * 365 + 17) * 86400) * Gst.SECOND # unix time in ns
+                ntp += ((ntptime & 0xFFFFFFFF) * Gst.SECOND) >> 32
+                udata.rtcp_ntp_time_epoch_ns = ntp
+                udata.rtcp_buffer_timestamp = gstreamer_time # from rtptime
+                logging.debug(f"on_handle_sync(): SR ntp_unix_ns={ntp}, rtptime={rtptime}")
+                logging.debug(f"on_handle_sync(): base_time={base_time}, base_rtptime={base_rtptime}, sr_ext_rtptime={sr_ext_rtptime}, clock_rate={clock_rate} => time={gstreamer_time / Gst.SECOND}s, pts={buffer.pts}")    
+            available = pkt.move_to_next()
 
-                self.rtcp_ntp_time_epoch_ns = rtcp_ntp_time_epoch_ns
-                self.rtcp_buffer_timestamp =  gstreamer_time
-            # else: pass # INVALID, SDES, RR, BYE, APP, RTPFB, PSFB, XR
-
-            # move pointer to next packet
-            pkt_exists = packet.move_to_next()
-
-    def new_jitter_buffer_callback(self, rtpbin, jitterbuffer, session, ssrc, udata):
-        # request for the `handle-sync` signal in jitterbuffer to lawfully tap RTCP Sender Report
-        jitterbuffer.connect('handle-sync', self.handle_sync_callback, udata)
-        # allow RTCP SR reports to be infinitely ahead than the data stream (useful for very low fps streams)
+    def on_new_jitterbuffer(self, rtpbin, jitterbuffer, session, ssrc, udata):
+        logging.debug(f"on_new_jitterbuffer(): jitterbuffer={jitterbuffer.get_name()}")
         jitterbuffer.set_property('max-rtcp-rtp-time-diff', -1)
-        return Gst.FlowReturn.OK
+        jitterbuffer.connect('handle-sync', self.on_handle_sync, udata)
 
-    def element_added_callback(self, rtspsrc, manager, udata):
-        # rtpbin: request new-jitterbuffer signal
-        if manager.name == 'manager':
-            manager.connect('new-jitterbuffer', self.new_jitter_buffer_callback, udata)
-        return Gst.FlowReturn.OK
+    def on_rtspsrc_new_manager(self, rtspsrc, manager, udata):
+        logging.debug(f"on_rtspsrc_new_manager(): manager={type(manager)}")
+        manager.connect('new-jitterbuffer', self.on_new_jitterbuffer, udata)
 
     def select_stream_callback(self, rtspsrc, num, caps, udata):
         media = caps.get_structure(0).get_value('media')
         encoding = caps.get_structure(0).get_value('encoding-name')
-
-        # skip stream other than video
-        if media != 'video':
-            return False
 
         # if encoding == 'H264':
         #     self.depay = make_element('rtph264depay', 'm_rtpdepay')
@@ -299,13 +283,19 @@ class RTSPPipeline(GSTPipeline):
         #     logging.warning(f'{encoding} is not supported')
         #     return False
 
-        return True
+        # skip stream other than video
+        if media == 'video':
+            logging.debug(f"on_rtspsrc_select_stream(): to accept media[{num}]={media}")
+            return True
+        else:
+            logging.debug(f"on_rtspsrc_select_stream(): to reject media[{num}]={media}")
+            return False
 
     def rtspsrc_pad_callback(self, rtspsrc, pad, udata):
         caps = pad.get_current_caps()
         structure = caps.get_structure(0)
         if structure.get_string("media") == "video":
-            self.video_caps = RTSP_CAPS(
+            self._video_caps = RTSP_CAPS(
                 structure.get_int("payload").value,
                 structure.get_int("clock-rate").value,
                 structure.get_string("packetization-mode"),
@@ -313,19 +303,22 @@ class RTSPPipeline(GSTPipeline):
                 structure.get_string("profile-level-id"),
                 structure.get_string("a-framerate")
             )
-            logging.info(f"RTSP CAPS (VIDEO) | {self.video_caps}")
+            logging.info(f"RTSP CAPS (VIDEO) | {self._video_caps}")
         name = structure.get_name()
         if name == 'application/x-rtp':
             # link depay element here since the pad is open now
             rtspsrc.link(self.depay)
     
     def connect_element_signals(self):
-        self.source.connect('element-added', self.element_added_callback, None)
-        self.source.connect('select-stream', self.select_stream_callback, None)
-        self.source.connect('pad-added', self.rtspsrc_pad_callback, None)
-        self.sink.connect("new-sample", self.on_new_sample, None)
+        self.source.connect('select-stream', self.select_stream_callback, self._v_ctx)
+        self.source.connect("new-manager", self.on_rtspsrc_new_manager, self._v_ctx)
+        self.source.connect('pad-added', self.rtspsrc_pad_callback, self._v_ctx)
+        self.sink.connect("new-sample", self.on_new_sample, self._v_ctx)
 
     def setup_elements(self):
+        
+        self._v_ctx = StreamInfo()
+
         ''' SOURCE '''
         self.source = make_element('rtspsrc', 'source')
         # add to pipeline
@@ -333,11 +326,13 @@ class RTSPPipeline(GSTPipeline):
         # source properties
         self.source.set_property('location', self.cfg.location)
         self.source.set_property('protocols', self.cfg.protocols)
-        self.source.set_property('ntp-sync', True)
-        self.source.set_property('buffer-mode', 0)
         self.source.set_property('latency', self.cfg.latency)
         self.source.set_property('user-id', self.cfg.user_id)
         self.source.set_property('user-pw', self.cfg.user_pw)
+        self.source.set_property('ntp-sync', True)
+        self.source.set_property('ntp-time-source', 0)
+        # self.source.set_property('ignore-x-server-reply', True) gst-good > 1.19
+        self.source.set_property('buffer-mode', 1)
 
         encoding = self.cfg.encoding
         assert encoding in ['H264', 'H265'], f'Invalid encoding option: {encoding}'
@@ -375,8 +370,7 @@ class RTSPPipeline(GSTPipeline):
         ''' SCALE '''
         self.videoscale = make_element('videoscale', 'scale')
         self.pipeline.add(self.videoscale)
-
-        self.filter = Gst.ElementFactory.make("capsfilter", "filter")
+        self.filter = make_element("capsfilter", "filter")
         self.pipeline.add(self.filter)
         if self.cfg.scale:
             H, W = self.cfg.scale
@@ -386,12 +380,11 @@ class RTSPPipeline(GSTPipeline):
         ''' APP SINK'''
         self.sink = make_element('appsink', 'sink')
         self.pipeline.add(self.sink)
-
         # emit new-preroll and new-sample signals flags
         self.sink.set_property('emit-signals', True)
-
         # The allowed caps for the sink padflags: readable, writable Caps (NULL)
-        caps = Gst.caps_from_string('video/x-raw, format=(string){BGR, GRAY8}')
+        colorformat = self.cfg.colorformat
+        caps = Gst.caps_from_string('video/x-raw, format=(string){{{cf}}}'.format(cf=colorformat))
         self.sink.set_property('caps', caps)
 
         ''' LINK ELEMENTS '''
@@ -405,6 +398,18 @@ class RTSPPipeline(GSTPipeline):
 
         ''' SIGNALS '''
         self.connect_element_signals()
+    
+    def close(self):
+        super().close()
+        elements = []
+        for elem in self.pipeline.children:
+            elements.append(elem)
+        for elem in elements:
+            self.pipeline.remove(elem)
+            elem.run_dispose()
+            logging.debug(f"{elem.name} removed and disposed")
+        self.pipeline.run_dispose()
+        logging.debug(f"{self.pipeline.name} disposed")
 
 class LocalPipeline(GSTPipeline):
     def __init__(self, cfg, name=None):
