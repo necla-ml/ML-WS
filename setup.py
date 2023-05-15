@@ -10,7 +10,7 @@ from ml import logging
 
 def write_version_py(path, major=None, minor=None, patch=None, suffix='', sha='Unknown'):
     if major is None or minor is None or patch is None:
-        major, minor, patch = sh("git describe --abbrev=0 --tags")[1:].split('.')
+        major, minor, patch = sh("git tag --sort=taggerdate | tail -1")[1:].split('.')
         sha = sh("git rev-parse HEAD")
         logging.info(f"Build version {major}.{minor}.{patch}-{sha}")
 
