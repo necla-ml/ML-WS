@@ -6,12 +6,13 @@
 # can be found in the PATENTS file in the same directory
 
 import os
+import time
 from pathlib import Path
 from datetime import datetime
+from time import localtime, strftime
 
-from ml import av, time, logging
+from ml import av, logging
 from ml.av import NALU_t, NALUParser, hasStartCode
-from ml.time import localtime, strftime
 
 obj_type = type
 

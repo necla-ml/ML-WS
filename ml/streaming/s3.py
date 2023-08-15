@@ -1,11 +1,9 @@
-import os
 import sys
-import time
-import errno
 from pathlib import Path
-from ml import av, logging
-from .avsource import AVSource, openAV
 
+from ml import logging
+
+from .avsource import AVSource, openAV
 from ..ws.aws import s3
 from ..ws.aws import utils
 

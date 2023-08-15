@@ -7,11 +7,7 @@ import requests, base64
 from ml import av, logging
 from ml.av import h264
 from ml.av import NALU_t
-from ml.time import (
-    time,
-    sleep,
-    fromFileTime,
-)
+from ml.time import fromFileTime
 from .avsource import AVSource
 
 NAMESPACES = {
