@@ -8,8 +8,9 @@
 # can be found in the PATENTS file in the same directory
 
 import logging
+import argparse
+
 from ml.ws.aws.rds import RDS
-from ml import argparse, sys
 
 logging.getLogger().setLevel('INFO')
 

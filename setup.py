@@ -1,10 +1,9 @@
-import os, sys
+import os
 import shutil
-import subprocess
 import distutils.command.clean
 from pathlib import Path
 
-from setuptools import setup, find_packages, find_namespace_packages
+from setuptools import setup, find_namespace_packages
 from ml.shutil import run as sh
 from ml import logging
 

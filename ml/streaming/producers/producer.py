@@ -6,18 +6,11 @@
 # can be found in the PATENTS file in the same directory
 
 import os
-import sys
-import errno
 from ml.time import (
-    time,
-    sleep,
     HUNDREDS_OF_NANOS_HOUR, 
     HUNDREDS_OF_NANOS_SEC
 )
 from ml import logging
-from ml.av.h264 import NALUParser, NALU_t
-
-from ml.ws.common import timeit
 
 from .._C import ffi, lib
 

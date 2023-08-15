@@ -1,8 +1,9 @@
+import sys
 from pathlib import Path
 import pytest
 
 from ml.streaming import AVSource
-from ml import av, cv, sys, logging
+from ml import logging
 
 from fixtures import assets
 
@@ -65,14 +66,13 @@ def test_webcam(src=0):
     assert source.src == src
 
     # open(self, start=None, end=None, expires=5 * 60, mode='LIVE', offset=4.75):
-    session = source.open(fps=15, resolution='720p', decoding=True)
+    session = source.open(fps=15, resolution=['720p'], decoding=True)
     assert session is not None
     assert 'video' in session
     assert 'audio' not in session
     logging.info(session)
 
     total = 5
-    X = sys.x_available()
     while True:
         res = source.read(session, media='video')
         assert res
@@ -85,10 +85,6 @@ def test_webcam(src=0):
             logging.info(f"[{count}] Decoded audio frame{frame.shape}@{media['fps']:.2f}FPS")
         else:
             assert False, f"Unknown media {m}"
-        
-        if X:
-            cv.imshow(frame, title='LIVE')
-            cv.waitKey(1)
         
         if count == total:
             break

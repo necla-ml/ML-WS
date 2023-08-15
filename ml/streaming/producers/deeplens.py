@@ -4,9 +4,7 @@
 # This source code is licensed under the license found in the LICENSE file in
 # the root directory of this source tree. An additional grant of patent rights
 # can be found in the PATENTS file in the same directory
-
-import os
-from time import time, sleep
+from time import time
 from ml.time import HUNDREDS_OF_NANOS_SEC
 
 from ...iot import AWSCam

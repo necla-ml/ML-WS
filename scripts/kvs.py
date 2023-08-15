@@ -6,10 +6,9 @@
 # This source code is licensed under the license found in the LICENSE file in
 # the root directory of this source tree. An additional grant of patent rights
 # can be found in the PATENTS file in the same directory
-import sys, errno
-from ml import argparse, sys, logging
+import argparse
+
 from ml.streaming import KVProducer
-from ml.ws.aws import s3, utils
 
 def main(cfg):
     print(f'Streaming video at {cfg.path} to KV stream={cfg.stream}')

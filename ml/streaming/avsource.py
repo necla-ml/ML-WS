@@ -8,7 +8,6 @@
 import os
 import time
 from pathlib import Path
-from datetime import datetime
 from time import localtime, strftime
 
 from ml import av, logging

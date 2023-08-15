@@ -4,15 +4,8 @@
 # This source code is licensed under the license found in the LICENSE file in
 # the root directory of this source tree. An additional grant of patent rights
 # can be found in the PATENTS file in the same directory
-
-import os
-from time import time, sleep
-
-from ml.av.h264 import NALU_t
-from ml.time import HUNDREDS_OF_NANOS_SEC
 from ml import logging
 
-from .._C import ffi, lib
 from .. import AVSource
 from . import KVProducer, DEFAULT_FPS_VALUE
 
