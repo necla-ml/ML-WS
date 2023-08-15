@@ -1,10 +1,9 @@
 import os
-import sys
-import time
-import errno
 import shlex
 import subprocess
-from ml import av, logging
+
+from ml import logging
+
 from .avsource import AVSource, openAV
 
 def yt_hls_url(url, *args, file_name='video.h264', **kwargs):

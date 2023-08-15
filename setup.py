@@ -99,7 +99,6 @@ if __name__ == '__main__':
             description=f"Supporting library for web services",
             long_description=readme(),
             license='BSD-3',
-            namespace_packages=namespaces,
             packages=namespaces + packages,
             cffi_modules=["ml/csrc/build.py:ffi"],
             setup_requires=["cffi>=1.0.0"],
