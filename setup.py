@@ -94,7 +94,7 @@ if __name__ == '__main__':
     setup(
             name=name,
             version=version,
-            author='Farley Lai',
+            author='Farley Lai;Deep Patel',
             url='https://gitlab.com/necla-ml/ML-WS',
             description=f"Supporting library for web services",
             long_description=readme(),
